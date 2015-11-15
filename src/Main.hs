@@ -4,7 +4,7 @@ import Network.Wai
 import Network.Wai.Handler.Warp (run)
 import Network.Wai.Middleware.Gzip (gzip, def)
 import Dispatcher(dispatch)
-import Database.MongoDB
+import Database.MongoDB(connect, Pipe, host)
 import Control.Monad.Trans (liftIO)
 
 application :: Pipe -> Application
