@@ -49,8 +49,7 @@ get entityName id db = do
 
 getAll :: Text -> Pipe -> IO (Maybe ByteString)
 getAll entityName db = do
-  entity <- access db master dbName (allTeams)
+  entity <- access db master dbName (query entityName)
   return $ return $ encode (map aesonify entity)
 
-allTeams :: Action IO [Document]
-allTeams = rest =<< find (select [] "team") {sort = ["home.city" =: 1]}
+  where query entityName = rest =<< find (select [] entityName)

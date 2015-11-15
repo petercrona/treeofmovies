@@ -12,7 +12,7 @@ import Control.Monad.Trans
 dispatch :: Request -> Pipe -> IO Response
 dispatch req db = case (pathInfo req) of
 
-  ("user":args) -> genericResource "team" req db
+  ("user":args) -> genericResource "User" req db
   ("movie":args) -> genericResource "Movie" req db
   ("authentication":args) -> genericResource "AuthenticationSession" req db
 
