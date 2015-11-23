@@ -8,18 +8,22 @@ import Database.MongoDB(connect, Pipe, host)
 import Control.Monad.Trans (liftIO)
 import Network.HTTP.Types (status500)
 import Data.Text
-import Auth
+import Dsl.ResourceAccess
+import Dsl.DatabaseInfrastructure
+import Dsl.Resource
+import Dsl.Handler
+import Resource.ResourceParser
 
 type DB = Pipe
 
-application :: DB -> Application
-application pipe request respond = do
-  dispatch request pipe >>= respond
+application :: [(String, HandlerExpr)] -> DB -> Application
+application handlerMappings db request respond = do
+  dispatch handlerMappings db request >>= respond
 
 main :: IO ()
 main = do
   db <- connect (host "127.0.0.1")
-  run 3000 $ middleware $ application db
+  run 3000 $ middleware $ application (getResourceToHandler api) db
 
 middleware :: Middleware
 middleware = gzip def
@@ -29,15 +33,43 @@ validateToken :: Middleware
 validateToken app request sendResponse = do
   print $ "Validating token: " ++ (show (queryString request))
   app request sendResponse
-  --sendResponse $ responseLBS status500 [] "Hello World"
 
-type InMemory = Bool
-type Name = String
-data Resource = Resource Name Auth InMemory
-
-getResource :: Resource
-getResource = Resource "movie" ((admin <||> user) <&&> confirmed) True
-
-admin = Auth $ \r -> r == "ADMIN"
-confirmed = Auth $ \r -> r == "CONFIRMED"
-user = Auth $ \r -> r == "USER"
+api :: ResourceExpr
+api =
+           resource "movie"
+                    generic
+                    (admin <||> user)
+                    (admin <||> user)
+                    (admin <||> (user <&&> confirmed))
+                    (admin <||> user)
+                    mysql
+           `also`
+           resource "user"
+                    generic
+                    (admin <||> (user <&&> confirmed))
+                    (admin <||> user)
+                    (admin <||> user)
+                    (admin <||> user)
+                    (memcache `backedBy` (mongoDb +++ mysql))
+           `also`
+           resource "session"
+                    (specialized "Session handler")
+                    guest
+                    (admin <||> user)
+                    (admin <||> user)
+                    (admin <||> user)
+                    redis
+           `also`
+           resource "cars"
+                    (
+                      (
+                        generic
+                        `atTheSameTime` (specialized "update number of cars added today")
+                      )
+                      `afterThat` (specialized "Update users cars")
+                    )
+                    (user <&&> admin)
+                    (admin <||> user)
+                    (admin <||> user)
+                    (admin <||> user)
+                    mysql
